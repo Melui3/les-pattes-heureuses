@@ -1,132 +1,90 @@
-const nav = document.querySelector("#site-nav");
-const navToggle = document.querySelector(".menu-toggle");
-const siteHeader = document.querySelector(".site-header");
-const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const header = document.querySelector('.site-header');
+const nav = document.querySelector('#navigation');
+const toggle = document.querySelector('.menu-toggle');
 
-function updateHeaderState() {
-  if (!siteHeader) {
-    return;
-  }
-
-  siteHeader.classList.toggle("scrolled", window.scrollY > 16);
+function closeMenu() {
+  nav.classList.remove('open');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-label', 'Ouvrir le menu');
 }
+toggle.addEventListener('click', () => {
+  const open = nav.classList.toggle('open');
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+});
+nav.querySelectorAll('a').forEach(link => link.addEventListener('click', closeMenu));
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && nav.classList.contains('open')) { closeMenu(); toggle.focus(); }
+});
+document.addEventListener('click', event => { if (!header.contains(event.target)) closeMenu(); });
+window.matchMedia('(min-width: 851px)').addEventListener('change', event => { if (event.matches) closeMenu(); });
+const updateHeader = () => header.classList.toggle('scrolled', window.scrollY > 10);
+updateHeader();
+window.addEventListener('scroll', updateHeader, { passive: true });
 
-updateHeaderState();
-window.addEventListener("scroll", updateHeaderState, { passive: true });
-
-if (nav && navToggle) {
-  navToggle.addEventListener("click", () => {
-    const isOpen = nav.classList.toggle("open");
-    navToggle.classList.toggle("open", isOpen);
-    navToggle.setAttribute("aria-expanded", String(isOpen));
-  });
-
-  nav.querySelectorAll("a").forEach((link) => {
-    link.addEventListener("click", () => {
-      nav.classList.remove("open");
-      navToggle.classList.remove("open");
-      navToggle.setAttribute("aria-expanded", "false");
+if ('IntersectionObserver' in window) {
+  const links = [...nav.querySelectorAll('a')];
+  const activeObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      links.forEach(link => link.removeAttribute('aria-current'));
+      links.find(link => link.hash === '#' + entry.target.id)?.setAttribute('aria-current', 'location');
+    }
+  }), { rootMargin: '-15% 0px -50% 0px', threshold: 0 });
+  links.forEach(link => activeObserver.observe(document.querySelector(link.hash)));
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); }
+    }), { threshold: .08 });
+    document.querySelectorAll('.about-image, .about-copy, .section-heading, .care-card, .team-bios article, .visit-steps li, .price-panel').forEach(element => {
+      element.classList.add('reveal'); observer.observe(element);
     });
-  });
-}
-
-if (!prefersReducedMotion && "IntersectionObserver" in window) {
-  document.documentElement.classList.add("motion-ready");
-
-  const revealItems = document.querySelectorAll(
-    [
-      ".trust-strip div",
-      ".section-heading",
-      ".split-grid > *",
-      ".cabinet-points article",
-      ".service-card",
-      ".animal-grid article",
-      ".gallery-grid figure",
-      ".equipment-grid article",
-      ".team-card",
-      ".reviews-summary",
-      ".review-card",
-      ".price-table",
-      ".appointment-layout > *",
-      ".faq-list details",
-      ".contact-info article",
-      ".contact-layout > .form-card",
-      ".map-panel",
-      ".footer-main",
-      ".footer-trust article",
-      ".footer-bottom",
-    ].join(", ")
-  );
-
-  const revealObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) {
-          return;
-        }
-
-        entry.target.classList.add("is-visible");
-        revealObserver.unobserve(entry.target);
-      });
-    },
-    {
-      rootMargin: "0px 0px -12% 0px",
-      threshold: 0.08,
-    }
-  );
-
-  revealItems.forEach((item, index) => {
-    item.classList.add("reveal");
-    item.style.setProperty("--reveal-delay", `${(index % 4) * 70}ms`);
-    revealObserver.observe(item);
-  });
-}
-
-const appointmentDate = document.querySelector("#appointment-date");
-const today = new Date().toISOString().slice(0, 10);
-
-if (appointmentDate) {
-  appointmentDate.min = today;
-}
-
-function bindForm(formSelector, statusSelector, successMessage) {
-  const form = document.querySelector(formSelector);
-  const status = document.querySelector(statusSelector);
-
-  if (!form || !status) {
-    return;
   }
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    form.classList.add("was-submitted");
-
-    if (!form.checkValidity()) {
-      status.textContent = "Merci de compléter les champs obligatoires.";
-      status.className = "form-status error";
-      form.reportValidity();
-      return;
-    }
-
-    status.textContent = successMessage;
-    status.className = "form-status success";
-    form.reset();
-    form.classList.remove("was-submitted");
-
-    if (appointmentDate) {
-      appointmentDate.min = today;
-    }
-  });
 }
 
-bindForm(
-  "#appointment-form",
-  "#appointment-status",
-  "Demande envoyée. Le cabinet vous rappelle pour confirmer le créneau."
-);
+const gallery = document.querySelector('#gallery-dialog');
+document.querySelectorAll('[data-gallery]').forEach(button => button.addEventListener('click', () => {
+  gallery.querySelector('img').src = button.dataset.gallery;
+  gallery.querySelector('img').alt = button.querySelector('img').alt;
+  gallery.querySelector('p').textContent = button.dataset.caption;
+  gallery.showModal();
+}));
+gallery.querySelector('button').addEventListener('click', () => gallery.close());
+gallery.addEventListener('click', event => {
+  if (event.target === gallery) {
+    const box = gallery.getBoundingClientRect();
+    if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) gallery.close();
+  }
+});
 
-bindForm(
-  "#contact-form",
-  "#contact-status",
-  "Message prêt à être transmis. Merci, nous revenons vers vous rapidement."
-);
+document.querySelectorAll('[data-reason]').forEach(link => link.addEventListener('click', () => {
+  document.querySelector('#appointment-reason').value = link.dataset.reason;
+  document.querySelector('#appointment-status').hidden = true;
+}));
+const dateInput = document.querySelector('#appointment-date');
+const form = document.querySelector('#appointment-form');
+const status = document.querySelector('#appointment-status');
+function localToday() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+function validateFields() {
+  dateInput.min = localToday();
+  dateInput.setCustomValidity('');
+  const day = dateInput.value ? new Date(dateInput.value + 'T12:00:00').getDay() : null;
+  if (day === 0) dateInput.setCustomValidity('Le cabinet est fermé le dimanche. Choisissez un autre jour.');
+  if (day === 6 && form.elements.time.value === 'Après-midi') dateInput.setCustomValidity('Le samedi, le cabinet vous accueille uniquement le matin.');
+  const phone = form.elements.phone;
+  phone.setCustomValidity(phone.value && !/^[+\d ()\.\-]{8,22}$/.test(phone.value) ? 'Indiquez un numéro de téléphone valide.' : '');
+}
+validateFields();
+form.addEventListener('input', () => { status.hidden = true; validateFields(); });
+form.addEventListener('change', validateFields);
+form.addEventListener('focusin', validateFields);
+form.addEventListener('submit', event => {
+  event.preventDefault(); validateFields(); if (!form.reportValidity()) return;
+  const data = new FormData(form);
+  const date = new Date(data.get('date') + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  status.textContent = `Votre récapitulatif est prêt — aucune demande envoyée.\n\n${data.get('name')} · ${data.get('phone')}\n${data.get('animal')} · ${data.get('reason')}\n${date} · ${data.get('time')}${data.get('message') ? '\n' + data.get('message') : ''}\n\nDémonstration : aucun créneau n’est réservé. Vous pouvez modifier vos informations ci-dessus.`;
+  status.hidden = false;
+  status.focus();
+});
